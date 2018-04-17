@@ -1,0 +1,7 @@
+string text
+bool play_excited_animation
+bool use_cozmo_voice
+float64 duration_scalar
+float64 voice_pitch
+---
+---
