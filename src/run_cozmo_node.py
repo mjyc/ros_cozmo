@@ -56,6 +56,9 @@ class CozmoHandler(object):
                     server.set_succeeded()
                 else:
                     if server.is_preempt_requested():
+                        # NOTE: "set_preempted" does not reset "preempt_request"
+                        #   fast enough
+                        server.preempt_request = False
                         server.set_preempted()
                     else:
                         server.set_aborted()
