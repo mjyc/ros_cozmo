@@ -26,36 +26,34 @@ class CozmoBridge(object):
 
         '''Cancels the running goal on receiving a new goal'''
         def goal_cb():
-            if self._servers[name].is_active():
-                self._actions[name].abort(log_abort_messages=True)
-                self._servers[name].set_preempted()
-                rospy.sleep(3)
-                print('init', self._actions[name])
-                # return
+
 
             goal = self._servers[name].accept_new_goal()
+            # action_is_running: then kill it!
+            # if action is aborting?
             goalID = self._servers[name].current_goal.get_goal_id()
             # if name in self._actions:
-            #     self._actions[name].abort(log_abort_messages=True)
-            #     # rospy.sleep(3)
-            #     # print('right before', self._actions[name])
-            #     # self._servers[name].set_aborted()
-            #     return
+            #     if self._actions[name].state == cozmo.action.ACTION_RUNNING:
+            #         self._actions[name].abort()
+            #         print('start')
+            #         rospy.sleep(1)
+            #         print('end')
+            if name in self._actions:
+                print('right before', self._actions[name])
             args = dict((key, getattr(goal, key)) for key in goal.__slots__)
             if "in_parallel" not in args:
                 args["in_parallel"] = True
             robot_method = getattr(self._robot, name.strip("/"))
-            if name in self._actions:
-                print('right before', self._actions[name])
             self._actions[name] = robot_method(**args)
             if name in self._actions:
                 print('right after', self._actions[name])
 
             def callback(evt, **kwargs):
                 curGoalID = self._servers[name].current_goal.get_goal_id()
-                # if curGoalID is not goalID:
-                #     rospy.logdebug("curGoalID=%s, goalID=%s" % (curGoalID, goalID))
-                #     return
+                if curGoalID is not goalID:
+                    # rospy.logdebug("Cozmo Action completed but GoalIDs don't match; current goal ID=%s, initial goal ID=%s; Skipping." % (curGoalID, goalID))
+                    rospy.logdebug("curGoalID=%s, goalID=%s" % (curGoalID, goalID))
+                    return
                 del self._actions[name]
                 rospy.loginfo("on_completed callback: evt=%s, kwargs=%s" % (evt, kwargs))
                 self._servers[name].set_succeeded()
