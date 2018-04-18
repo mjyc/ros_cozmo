@@ -14,6 +14,6 @@ generate_messages(DEPENDENCIES std_msgs actionlib_msgs)
 catkin_package(CATKIN_DEPENDS std_msgs message_runtime)
 
 install(PROGRAMS
-  scripts/ros_cozmo.py
+  scripts/run_cozmo_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
