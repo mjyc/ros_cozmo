@@ -68,13 +68,13 @@ class CozmoHandler(object):
 
             rospy.logdebug('SimpleActionServer.is_preempt_requested()=%s' % (self._servers[name].is_preempt_requested()))
 
+            # If no action was running, preempt would not have been requested
             if not server.is_preempt_requested():
                 start_cozmo_action()
-            # Otherwise, "on_complete_cb" in "preempt_cb" will start an action
+            # Otherwise, "on_complete_cb" in "preempt_cb" will start a new action
 
         def preempt_cb():
-            # NOTE: This function is called before "goal_cb" if the server is
-            #   active.
+            # NOTE: This function is called before "goal_cb" if the server is active
             server = self._servers[name]
             cozmo_action = self._cozmo_actions[name]
 
@@ -83,6 +83,9 @@ class CozmoHandler(object):
                     cozmo.action.EvtActionCompleted,
                     on_complete_cb
                 )
+                # TODO: try "preempt_cb" while an action is being aborted; it
+                #   should be fine in SDK 1.3.2, see:
+                #   https://github.com/anki/cozmo-python-sdk/blob/1.3.2/src/cozmo/action.py#L638-L644
                 cozmo_action.abort()
                 # "on_complete_cb" will call "set_preempted"
                 cozmo_action.add_event_handler(

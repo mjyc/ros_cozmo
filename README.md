@@ -14,7 +14,7 @@ This package provides ROS interfaces for [Cozmo SDK](http://cozmosdk.anki.com/do
     sudo pip3 install rospkg catkin_pkg
     ```
 
-    * Thanks to [OTL](https://github.com/OTL) for finding [this workaround](https://github.com/OTL/cozmo_driver#super-hack-to-run-rospy-from-python3)
+    * Thanks [OTL](https://github.com/OTL) for finding [this workaround](https://github.com/OTL/cozmo_driver#super-hack-to-run-rospy-from-python3)!
     * Note that [ROS Kinectic does not require python3](http://www.ros.org/reps/rep-0003.html#kinetic-kame-may-2016-may-2021).
 
 1. [Start Cozmo SDK](http://cozmosdk.anki.com/docs/getstarted.html).
