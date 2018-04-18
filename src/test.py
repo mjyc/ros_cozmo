@@ -4,7 +4,7 @@ import sys
 import cozmo
 import rospy
 import actionlib
-import actionlib_tutorials.msg
+import ros_cozmo.msg
 
 
 class CozmoAction(object):
