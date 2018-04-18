@@ -7,11 +7,12 @@ import rospy
 import ros_cozmo.msg
 
 
-class CozmoBridge(object):
+class CozmoHandler(object):
+
     def __init__(self, coz):
         self._robot = coz
         self._servers = {}
-        self._actions = {}
+        self._cozmo_actions = {}
 
     @property
     def servers(self):
@@ -24,54 +25,71 @@ class CozmoBridge(object):
             auto_start=False
         )
 
-        '''Cancels the running goal on receiving a new goal'''
-        def goal_cb():
-            if self._servers[name].is_active():
-                self._actions[name].abort(log_abort_messages=True)
-                self._servers[name].set_preempted()
-                rospy.sleep(3)
-                print('init', self._actions[name])
-                # return
+        def start_cozmo_action():
+            server = self._servers[name]
 
-            goal = self._servers[name].accept_new_goal()
-            goalID = self._servers[name].current_goal.get_goal_id()
-            # if name in self._actions:
-            #     self._actions[name].abort(log_abort_messages=True)
-            #     # rospy.sleep(3)
-            #     # print('right before', self._actions[name])
-            #     # self._servers[name].set_aborted()
-            #     return
+            rospy.logdebug('before SimpleActionServer.accept_new_goal()=%s' % (server.current_goal.get_goal()))
+            goal = server.accept_new_goal()
+            rospy.logdebug('after SimpleActionServer.accept_new_goal()=%s' % (server.current_goal.get_goal()))
             args = dict((key, getattr(goal, key)) for key in goal.__slots__)
             if "in_parallel" not in args:
                 args["in_parallel"] = True
-            robot_method = getattr(self._robot, name.strip("/"))
-            if name in self._actions:
-                print('right before', self._actions[name])
-            self._actions[name] = robot_method(**args)
-            if name in self._actions:
-                print('right after', self._actions[name])
+            # TODO: wrap getattr & cozmo_action(**args) with try & catch
+            cozmo_action = getattr(self._robot, name.strip("/"))
+            self._cozmo_actions[name] = cozmo_action(**args)
+            self._cozmo_actions[name].add_event_handler(
+                cozmo.action.EvtActionCompleted,
+                on_complete_cb
+            )
 
-            def callback(evt, **kwargs):
-                curGoalID = self._servers[name].current_goal.get_goal_id()
-                # if curGoalID is not goalID:
-                #     rospy.logdebug("curGoalID=%s, goalID=%s" % (curGoalID, goalID))
-                #     return
-                del self._actions[name]
-                rospy.loginfo("on_completed callback: evt=%s, kwargs=%s" % (evt, kwargs))
-                self._servers[name].set_succeeded()
+        def on_complete_cb(evt, **kwargs):
+            server = self._servers[name]
 
-            print(goalID.id, self._actions[name])
-            self._actions[name].on_completed(callback)
+            rospy.logdebug("evt=%s, kwargs=%s" % (evt, kwargs))
+            rospy.logdebug("SimpleActionServer.is_new_goal_available()=%s" % (server.is_new_goal_available()))
+            rospy.logdebug("SimpleActionServer.is_preempt_requested()=%s" % (server.is_preempt_requested()))
 
-        def _preempt_cb(self):
-            print("1")
-            if self._servers[name].is_active():
-                print("2")
-                self._actions[name].abort()
-                self._servers[name].set_preempted()
+            if server.is_new_goal_available():
+                start_cozmo_action()
+            else:
+                if evt.state == cozmo.action.ACTION_SUCCEEDED:
+                    server.set_succeeded()
+                else:
+                    if server.is_preempt_requested():
+                        server.set_preempted()
+                    else:
+                        server.set_aborted()
+
+        def goal_cb():
+            server = self._servers[name]
+
+            rospy.logdebug('SimpleActionServer.is_preempt_requested()=%s' % (self._servers[name].is_preempt_requested()))
+
+            if not server.is_preempt_requested():
+                start_cozmo_action()
+            # Otherwise, "on_complete_cb" in "preempt_cb" will start an action
+
+        def preempt_cb():
+            # NOTE: This function is called before "goal_cb" if the server is
+            #   active.
+            server = self._servers[name]
+            cozmo_action = self._cozmo_actions[name]
+
+            if server.is_active():
+                cozmo_action.remove_event_handler(
+                    cozmo.action.EvtActionCompleted,
+                    on_complete_cb
+                )
+                cozmo_action.abort()
+                # "on_complete_cb" will call "set_preempted"
+                cozmo_action.add_event_handler(
+                    cozmo.action.EvtActionCompleted,
+                    on_complete_cb
+                )
+                return
 
         self._servers[name].register_goal_callback(goal_cb)
-        # server.register_preempt_callback(self._preempt_cb)
+        self._servers[name].register_preempt_callback(preempt_cb)
 
         return self._servers[name]
 
@@ -80,17 +98,19 @@ def run(coz_conn):
     '''The run method runs once Cozmo is connected.'''
     coz = coz_conn.wait_for_robot()
 
+    # TODO: remove "log_level=rospy.DEBUG" when the code is more stable
     rospy.init_node("cozmo", log_level=rospy.DEBUG)
 
-    cozmo_bridge = CozmoBridge(coz)
-    cozmo_bridge.createActionServer('/say_text', ros_cozmo.msg.SayTextAction)
-    for name, server in cozmo_bridge.servers.items():
+    cozmo_handler = CozmoHandler(coz)
+    cozmo_handler.createActionServer('/say_text', ros_cozmo.msg.SayTextAction)
+    for name, server in cozmo_handler.servers.items():
         server.start()
 
     rospy.spin()
 
 
 if __name__ == "__main__":
+    cozmo.setup_basic_logging()  # TODO: remove when the code is more stable
     try:
         cozmo.connect(run)
     except cozmo.ConnectionError as e:
