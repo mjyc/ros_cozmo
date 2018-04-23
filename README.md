@@ -1,4 +1,4 @@
-# ROS Cozmo (WIP)
+# (WIP) ROS Cozmo
 
 This package provides ROS interfaces for [Cozmo SDK](http://cozmosdk.anki.com/docs/). ROS Cozmo is tested on Ubuntu 16.04 with ROS Kinetic and Cozmo [SDK 1.3.2 / App 2.4.0](http://cozmosdk.anki.com/docs/sdk-versions.html). This package is inspired by the [cozmo_driver](https://github.com/OTL/cozmo_driver) package.
 
